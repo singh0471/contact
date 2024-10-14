@@ -105,34 +105,81 @@ class User{
         }
     }
 
-    async getAllUsers(){
-        try{
-            const allUsers = await db.users.findAll();
-            const staffUsers = allUsers.filter(user => !user.isAdmin).map(user => ({username : user.username,firstName:user.firstName,lastName:user.lastName}));
-            return staffUsers;
-        }
-        catch(error){
-            Logger.error(error);
-        }
-    }
 
-    async getUserByID(userID){
-        try{
-            const user = await db.users.findOne({
-                where : {
-                    id : userID,
-                    is_admin : false,
+    async getAllUsers() {
+        try {
+            const allUsers = await db.users.findAll({
+                where: {
+                    isAdmin: false
                 },
-                attributes : ["firstName","lastName","username"]
+                include: [
+                    {
+                        model: db.contacts,
+                        as: 'contacts',
+                        include: [
+                            {
+                                model: db.contactDetails,
+                                as: 'contactDetails'
+                            }
+                        ]
+                    }
+                ]
             });
-            if(!user)
-                throw new NotFoundError("could not found user");
-            return user;
-        }
-        catch(error){
+    
+            
+            const staffUsers = allUsers.map(user => ({
+                username: user.username,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                contacts: user.contacts.map(contact => ({
+                    firstName: contact.firstName,
+                    lastName: contact.lastName,
+                    contactDetails: contact.contactDetails.map(detail => ({
+                        type: detail.type,
+                        value: detail.value
+                    }))
+                }))
+            }));
+    
+            return staffUsers;
+        } catch (error) {
             Logger.error(error);
         }
     }
+    
+
+    async getUserByID(userID) {
+        try {
+            const user = await db.users.findOne({
+                where: {
+                    id: userID,
+                    is_admin: false 
+                },
+                attributes: ["firstName", "lastName", "username"],
+                include: [
+                    {
+                        model: db.contacts,
+                        as: 'contacts',
+                        attributes: ["firstName", "lastName"],  
+                        include: [
+                            {
+                                model: db.contactDetails,
+                                as: 'contactDetails',
+                                attributes: ["type", "value"]  
+                            }
+                        ]
+                    }
+                ]
+            });
+    
+            if (!user) throw new NotFoundError("could not find user");
+    
+            return user;
+        } catch (error) {
+            Logger.error(error);
+        }
+    }
+    
 
 
     async updateUserByID(userID,parameter,value){
@@ -238,6 +285,73 @@ class User{
             Logger.error(error);
         }
     }
+
+    async createContactDetailsWithContactID(contactID,type,value){
+        try{
+            const contact = await Contact.getContact(this.getUserID(),contactID);
+            
+            const newDetail = await contact.createContactDetailWithID(type,value);
+            console.log(newDetail)
+            if(!newDetail)
+                throw NotFoundError("could not create contact detail");
+
+            return newDetail;
+        }
+        catch(error){
+            Logger.error(error);
+        }
+    }
+
+    async getAllContactDetailsWithID(contactID){
+        try{
+            const contact = await Contact.getContact(this.getUserID(),contactID);
+            const allDetails = await contact.getAllContactDetailsWithID(contactID);
+            return allDetails;
+        }
+        catch(error){
+            Logger.error(error);
+        }
+    }
+
+    async getContactDetailsWithID(contactID,contactDetailID){
+        try{
+            const contact = await Contact.getContact(this.getUserID(),contactID);
+            const contactDetail = await contact.getContactDetailsWithID(contactID,contactDetailID);
+            return contactDetail;
+        }
+        catch(error){
+            Logger.error(error);
+        }
+    }
+
+    async deleteContactDetailByID(contactID,contactDetailID){
+        try{
+            const contact = await Contact.getContact(this.getUserID(),contactID);
+            
+            const isDeleted = await contact.deleteContactDetailByID(contactID,contactDetailID);
+            
+            return isDeleted;
+        }
+        catch(error){
+            Logger.error(error);
+        }
+    }
+
+    async updateContactDetailByID(contactID,contactDetailID,parameter,value){
+        try{
+            const contact = await Contact.getContact(this.getUserID(),contactID);
+            
+            const isUpdated = await contact.updateContactDetailByID(contactID,contactDetailID,parameter,value);
+            
+            return isUpdated;
+        }
+        catch(error){
+            Logger.error(error);
+        }
+    }
+
+
+   
 }
 
 module.exports = User;

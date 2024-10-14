@@ -93,7 +93,7 @@ const verifyUserID = (req,res,next) => {
     try{
         const {userID} = req.params;
         const user = req.user;
-        console.log(userID," ",user)
+        
         if(userID != user)
             throw new UnauthorizedError("you cannot access someone elses accounts.");
 
